@@ -1,6 +1,8 @@
 class CalcController {
 
     constructor() {
+        this._audio = new Audio('click.mp3')
+        this._audioOnOff = false;
         this._lastOperator = '';
         this._lastNumber = '';
         this._operation = [];
@@ -12,6 +14,24 @@ class CalcController {
         this._currentDate;
         this.initialize();
         this.initButtonsEvents();
+        this.initKeyboard();
+    }
+
+    pasteFromClipboard() {
+        document.addEventListener('paste', event => {
+
+            this.displayCalc = parseFloat(event.clipboardData.getData('Text'))
+        })
+    }
+
+    copyToClipboard() {
+        let input = document.createElement('input')
+        input.value = this.displayCalc
+        document.body.appendChild(input)
+
+        input.select()
+        document.execCommand('Copy')
+        input.remove()
     }
 
     initialize() {
@@ -20,6 +40,75 @@ class CalcController {
             this.setDisplayDateTime()
         }, 1000)
         this.setLastNumberToDisplay()
+        this.pasteFromClipboard()
+
+        document.querySelectorAll('.btn-ac').forEach(btn => {
+            btn.addEventListener('dblclick', event => {
+                this.toggleAudio()
+            })
+        })
+    }
+
+    toggleAudio() {
+        this._audioOnOff = !this._audioOnOff
+    }
+
+    playAudio() {
+
+        if (this._audioOnOff) {
+            this._audio.currentTime = 0
+            this._audio.play()
+
+        }
+    }
+
+
+    initKeyboard() {
+        document.addEventListener('keyup', event => {
+            this.playAudio()
+            switch (event.key) {
+                case 'Escape':
+                    this.clearAll()
+                    break
+
+                case 'Backspace':
+                    this.cancelEntry()
+                    break
+
+                case '+':
+                case '-':
+                case '*':
+                case '/':
+                case '%':
+                    this.addOperation(event.key)
+                    break
+                case 'Enter':
+                case '=':
+                    this.calculate()
+                    break
+
+                case '.':
+                case ',':
+                    this.addDot()
+                    break
+
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    this.addOperation(parseInt(event.key))
+                    break
+                case 'c':
+                    if (event.ctrlKey) this.copyToClipboard()
+                    break
+            }
+        })
     }
 
     addEventListenerAll(element, events, fn) {
@@ -61,7 +150,13 @@ class CalcController {
     }
 
     getResult() {
-        return eval(this._operation.join(''))
+        try {
+            return eval(this._operation.join(''))
+        } catch {
+            setTimeout(() => {
+                this.setError()
+            }, 1)
+        }
     }
 
     calculate() {
@@ -137,12 +232,12 @@ class CalcController {
         }
     }
 
-    addDot(){
+    addDot() {
         let lastOperation = this.getLastOperation()
 
-        if(typeof lastOperation === 'string' && lastOperation.split('').indexOf('.') > -1) return
+        if (typeof lastOperation === 'string' && lastOperation.split('').indexOf('.') > -1) return
 
-        if(this.isOperator(lastOperation) || !lastOperation){
+        if (this.isOperator(lastOperation) || !lastOperation) {
             this.pushOperation('0.')
         } else {
             this.setLastOperation(lastOperation.toString() + '.')
@@ -156,6 +251,7 @@ class CalcController {
     }
 
     execButtonAction(buttonValue) {
+        this.playAudio()
         switch (buttonValue) {
             case 'ac':
                 this.clearAll()
@@ -253,6 +349,10 @@ class CalcController {
     }
 
     set displayCalc(value) {
+        if (value.toString().length > 10) {
+            this.setError()
+            return false
+        }
         this._displayCalcEl.innerHTML = value;
     }
 
